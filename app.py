@@ -122,6 +122,20 @@ with tab2:
     if df.empty:
         st.warning("Chưa có dữ liệu hoặc lỗi tải dữ liệu.")
     else:
+        # 4. Bộ lọc Thời gian
+        frequency_map = {
+            "Ngày": "D",
+            "Tuần": "W",
+            "Tháng": "M",
+            "Quý": "Q",
+            "Năm": "Y"
+        }
+        
+        time_period = st.selectbox(
+            "🔎 **3. Xem Cơ Cấu Chi Tiêu theo chu kỳ:**",
+            options=list(frequency_map.keys()),
+            index=2 # Mặc định là Tháng
+        )
         # 1. Các chỉ số KPI chính
         st.subheader("Tổng Quan Chi Tiêu")
         col1, col2 = st.columns(2)
@@ -168,20 +182,7 @@ with tab2:
 
         st.markdown("---")
         
-        # 4. Bộ lọc Thời gian
-        frequency_map = {
-            "Ngày": "D",
-            "Tuần": "W",
-            "Tháng": "M",
-            "Quý": "Q",
-            "Năm": "Y"
-        }
         
-        time_period = st.selectbox(
-            "🔎 **3. Xem Cơ Cấu Chi Tiêu theo chu kỳ:**",
-            options=list(frequency_map.keys()),
-            index=2 # Mặc định là Tháng
-        )
         
         # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí MỚI: 3)
         
@@ -205,6 +206,7 @@ with tab2:
         st.markdown("---")
         st.subheader("Dữ Liệu Thô")
         st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
+
 
 
 
