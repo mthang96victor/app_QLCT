@@ -74,7 +74,7 @@ def load_data():
 
 # --- BẮT ĐẦU GIAO DIỆN STREAMLIT ---
 # ĐÃ SỬA LỖI: CHỈ DÙNG EMOJI LÀM FAVICON ĐỂ TRÁNH LỖI FILE
-st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered", favicon="📊") 
+st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered", favicon="$") 
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH (Đã loại bỏ đăng nhập) ---
 
@@ -205,4 +205,5 @@ with tab2:
         st.markdown("---")
         st.subheader("Dữ Liệu Thô")
         st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
+
 
