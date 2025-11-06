@@ -71,7 +71,7 @@ def load_data():
         st.error(f"Không thể tải dữ liệu. Lỗi có thể do dữ liệu không hợp lệ. Chi tiết: {e}")
         return pd.DataFrame()
 
-# --- HÀM TÍNH TOÁN NGÀY (MỚI) ---
+# --- HÀM TÍNH TOÁN NGÀY ---
 def get_date_range(period):
     """Tính toán ngày bắt đầu và ngày kết thúc cho các chu kỳ tương đối."""
     today = date.today()
@@ -105,17 +105,19 @@ st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered")
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH ---
 
-st.title("Onion's Chi Tiêu")
+st.title("💸 Ứng dụng Quản Lý Chi Tiêu Cá Nhân")
 
 # Navigation Tabs
 tab1, tab2 = st.tabs(["**NHẬP LIỆU**", "**DASHBOARD**"])
+
+# Danh mục cố định (Dùng cho cả nhập liệu và lọc)
+CATEGORIES = ['Ăn uống', 'Giải trí', 'Tiền nhà', 'Đi lại', 'Mua sắm', 'Dịch vụ', 'Du lịch', 'Y tế', 'Phong bì']
+
 
 # --- TAB 1: NHẬP LIỆU ---
 with tab1:
     st.header("Thêm Chi Tiêu Mới")
     
-    CATEGORIES = ['Ăn uống', 'Giải trí', 'Tiền nhà', 'Đi lại', 'Mua sắm', 'Du lịch', 'Dịch vụ', 'Y tế', 'Phong bì']
-
     with st.form("Chi_tieu_form", clear_on_submit=True):
         
         date_input = st.date_input("🗓️ **Ngày**", pd.to_datetime('today'))
@@ -149,16 +151,20 @@ with tab2:
     if df.empty:
         st.warning("Chưa có dữ liệu hoặc lỗi tải dữ liệu.")
     else:
-        # --- BỘ LỌC PHẠM VI THỜI GIAN MỚI ---
+        
+        # --- BỘ LỌC PHẠM VI THỜI GIAN MỚI (Lên đầu) ---
         st.subheader("Lọc Dữ Liệu")
+        
+        # 1. Lọc theo ngày (Tương đối / Tùy chỉnh)
         filter_type = st.radio(
-            "Chọn Phạm Vi Thời Gian:",
+            "Chọn Phạm Vi Ngày:",
             ('Tương đối (Hôm nay/Tuần/Tháng/Năm)', 'Tùy chỉnh (Chọn ngày)'),
             index=0
         )
         
         df_filtered = df.copy()
         
+        # Logic Lọc theo ngày
         if filter_type == 'Tương đối (Hôm nay/Tuần/Tháng/Năm)':
             relative_period = st.selectbox(
                 "Chọn chu kỳ:",
@@ -169,8 +175,6 @@ with tab2:
             
             if start_date and end_date:
                 st.info(f"Đang hiển thị dữ liệu từ **{start_date.strftime('%d-%m-%Y')}** đến **{end_date.strftime('%d-%m-%Y')}**")
-                
-                # Áp dụng bộ lọc cho DataFrame
                 df_filtered = df[(df['Ngày'].dt.date >= start_date) & 
                                  (df['Ngày'].dt.date <= end_date)]
                 
@@ -187,13 +191,24 @@ with tab2:
             else:
                 st.error("Ngày Bắt Đầu phải nhỏ hơn hoặc bằng Ngày Kết Thúc.")
                 df_filtered = pd.DataFrame()
+
+        # 2. Lọc theo Danh mục (MỚI)
+        selected_categories = st.multiselect(
+            "Chọn Danh Mục:",
+            options=CATEGORIES,
+            default=CATEGORIES # Mặc định chọn tất cả
+        )
+        
+        # Áp dụng bộ lọc danh mục
+        if selected_categories:
+            df_filtered = df_filtered[df_filtered['Danh Mục'].isin(selected_categories)]
         
         st.markdown("---")
         
         # --- HIỂN THỊ DASHBOARD ---
         
         if df_filtered.empty:
-            st.warning("Không tìm thấy chi tiêu nào trong phạm vi thời gian đã chọn.")
+            st.warning("Không tìm thấy chi tiêu nào trong phạm vi đã chọn.")
         else:
             
             # 1. Các chỉ số KPI chính
@@ -210,19 +225,7 @@ with tab2:
             
             st.markdown("---")
             
-            # 2. Bộ lọc Chu kỳ (Dùng cho biểu đồ cột chồng)
-            frequency_map = {
-                "Ngày": "D", "Tuần": "W", "Tháng": "M", "Quý": "Q", "Năm": "Y"
-            }
-            
-            time_period = st.selectbox(
-                "🔎 **Chọn Chu Kỳ Nhóm Dữ Liệu (Cho biểu đồ cột):**",
-                options=list(frequency_map.keys()),
-                index=2 # Mặc định là Tháng
-            )
-            st.markdown("---")
-
-            # 3. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí 1)
+            # 2. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí 1)
             st.subheader("1. Phân Bổ Tổng Chi Tiêu")
             category_summary = df_filtered.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
 
@@ -236,7 +239,7 @@ with tab2:
             
             st.markdown("---")
                 
-            # 4. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 2)
+            # 3. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 2)
             st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế")
             df_daily = df_filtered.groupby('Ngày')['Số Tiền'].sum().reset_index()
             df_daily['Chi Tiêu Lũy Kế'] = df_daily['Số Tiền'].cumsum()
@@ -253,6 +256,18 @@ with tab2:
             st.plotly_chart(fig_cumulative, use_container_width=True)
 
             st.markdown("---")
+            
+            # 4. Bộ lọc Chu kỳ (Di chuyển xuống trước Biểu đồ Cột Chồng)
+            frequency_map = {
+                "Ngày": "D", "Tuần": "W", "Tháng": "M", "Quý": "Q", "Năm": "Y"
+            }
+            
+            time_period = st.selectbox(
+                "🔎 **Chọn Chu Kỳ Nhóm Dữ Liệu (Cho biểu đồ cột):**",
+                options=list(frequency_map.keys()),
+                index=2, # Mặc định là Tháng
+                key='stacked_chart_freq' # Dùng key để tránh xung đột
+            )
             
             # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí 3)
             
@@ -276,4 +291,3 @@ with tab2:
             st.markdown("---")
             st.subheader("Dữ Liệu Thô")
             st.dataframe(df_filtered.sort_values(by='Ngày', ascending=False), use_container_width=True)
-
