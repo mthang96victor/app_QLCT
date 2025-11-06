@@ -64,7 +64,7 @@ def load_data():
             return pd.DataFrame()
             
         df['Ngày'] = pd.to_datetime(df['Ngày'], errors='coerce')
-        df['Số Tiền'] = pd.to_numeric(df['Số Tiền'], errors='coerce')
+            df['Số Tiền'] = pd.to_numeric(df['Số Tiền'], errors='coerce')
         df.dropna(subset=['Số Tiền', 'Ngày'], inplace=True)
         
         return df
@@ -73,12 +73,12 @@ def load_data():
         return pd.DataFrame()
 
 # --- BẮT ĐẦU GIAO DIỆN STREAMLIT ---
-# DÒNG NÀY ĐÃ ĐƯỢC THAY ĐỔI: THÊM THAM SỐ favicon="4.png"
-st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered", favicon="4.png") 
+# ĐÃ SỬA LỖI: CHỈ DÙNG EMOJI LÀM FAVICON ĐỂ TRÁNH LỖI FILE
+st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered", favicon="📊") 
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH (Đã loại bỏ đăng nhập) ---
 
-st.title("Onion chi tiêu")
+st.title("Onion's Chi Tiêu")
 
 # Navigation Tabs
 tab1, tab2 = st.tabs(["**NHẬP LIỆU**", "**DASHBOARD**"])
@@ -205,4 +205,3 @@ with tab2:
         st.markdown("---")
         st.subheader("Dữ Liệu Thô")
         st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
-
