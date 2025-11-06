@@ -229,22 +229,8 @@ with tab2:
             
             st.markdown("---")
             
-            # 2. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí 1)
-            st.subheader("1. Phân Bổ Tổng Chi Tiêu")
-            category_summary = df_filtered.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
-
-            fig_pie = px.pie(category_summary, 
-                             values='Số Tiền', 
-                             names='Danh Mục', 
-                             title='Tỷ Lệ Chi Tiêu theo Danh Mục',
-                             color_discrete_sequence=px.colors.sequential.Agsunset)
-            fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
-            st.plotly_chart(fig_pie, use_container_width=True)
-            
-            st.markdown("---")
-                
-            # 3. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 2)
-            st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế (Theo Ngày)")
+            # 1. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 1)
+            st.subheader("1. Xu Hướng Chi Tiêu Lũy Kế (Theo Ngày)")
             
             # Tính toán lũy kế theo ngày (đã là theo ngày)
             df_daily = df_filtered.groupby('Ngày')['Số Tiền'].sum().reset_index()
@@ -269,7 +255,21 @@ with tab2:
 
             st.markdown("---")
             
-            # 4. Bộ lọc Chu kỳ (Di chuyển xuống trước Biểu đồ Cột Chồng)
+            # 2. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí 2)
+            st.subheader("2. Phân Bổ Tổng Chi Tiêu")
+            category_summary = df_filtered.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
+
+            fig_pie = px.pie(category_summary, 
+                             values='Số Tiền', 
+                             names='Danh Mục', 
+                             title='Tỷ Lệ Chi Tiêu theo Danh Mục',
+                             color_discrete_sequence=px.colors.sequential.Agsunset)
+            fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # 3. Bộ lọc Chu kỳ (Di chuyển xuống trước Biểu đồ Cột Chồng)
             frequency_map = {
                 "Ngày": "D", "Tuần": "W", "Tháng": "M", "Quý": "Q", "Năm": "Y"
             }
@@ -281,11 +281,18 @@ with tab2:
                 key='stacked_chart_freq' # Dùng key để tránh xung đột
             )
             
-            # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí 3)
+            # 4. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí 3)
             
+            # Hàm định dạng tiền tệ đơn giản (k)
+            def format_money_k(value):
+                return f'{value/1000:,.0f}k' if value >= 1000 else f'{value:,.0f}'
+
             df_filtered['Chu Kỳ'] = df_filtered['Ngày'].dt.to_period(frequency_map[time_period]).astype(str)
             
             time_series_summary = df_filtered.groupby(['Chu Kỳ', 'Danh Mục'])['Số Tiền'].sum().reset_index()
+
+            # Tạo cột text đã được định dạng trước
+            time_series_summary['Text_Formatted'] = time_series_summary['Số Tiền'].apply(format_money_k)
 
             fig_stack = px.bar(
                 time_series_summary, 
@@ -295,16 +302,12 @@ with tab2:
                 title=f'3. Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
                 labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
                 height=450,
+                text='Text_Formatted' # SỬ DỤNG CỘT ĐÃ ĐỊNH DẠNG SẴN
             )
             
-            # Hàm định dạng tiền tệ đơn giản (k)
-            def format_money_k(value):
-                return f'{value/1000:,.0f}k' if value >= 1000 else f'{value:,.0f}'
-
             # Áp dụng hàm định dạng cho text và hiển thị label
             fig_stack.update_traces(
-                text=time_series_summary['Số Tiền'].apply(format_money_k),
-                textposition='inside' # Đặt label bên trong cột
+                textposition='auto' # Đặt label bên trong cột hoặc bên ngoài
             )
             
             fig_stack.update_layout(
