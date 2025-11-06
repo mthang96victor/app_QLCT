@@ -4,6 +4,7 @@ from gspread import service_account_from_dict, authorize
 from io import StringIO
 from datetime import date
 import plotly.express as px
+# Đã gỡ bỏ: from streamlit_authenticator import Authenticate
 
 # --- THIẾT LẬP KẾT NỐI VỚI GOOGLE SHEETS ---
 
@@ -19,17 +20,14 @@ def get_gspread_credentials():
     
     # Kiểm tra xem tất cả các key cần thiết có tồn tại không
     if not all(key in creds for key in required_keys):
-        # Báo lỗi cấu hình Secret nếu thiếu trường
         st.error("Lỗi cấu hình Secret: Vui lòng kiểm tra lại 11 trường Secret (type, project_id, etc.)")
         st.stop()
         return None
 
-    # Trả về dictionary credentials
     return {key: creds[key] for key in required_keys}
 
 try:
     gspread_credentials = get_gspread_credentials()
-    # Khởi tạo client gspread bằng dictionary credentials
     gc = service_account_from_dict(gspread_credentials)
 except Exception as e:
     st.error(f"Lỗi: Không thể khởi tạo kết nối GSpread. Chi tiết: Vui lòng kiểm tra lại định dạng 11 Secret. Lỗi: {e}")
@@ -37,7 +35,7 @@ except Exception as e:
 
 # ĐÃ THAY THẾ BẰNG ID GOOGLE SHEET CỦA BẠN!
 SHEET_ID = "1EUD9CKeFI1deKTPWFmL-RrIbQXmNMWYmNYgKZ5jC3o4" 
-SHEET_NAME = "Note chi tiêu" 
+SHEET_NAME = "Sheet1" 
 
 @st.cache_resource
 def get_sheet_connection():
@@ -76,6 +74,9 @@ def load_data():
 
 # --- BẮT ĐẦU GIAO DIỆN STREAMLIT ---
 st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered")
+
+# --- HIỂN THỊ NỘI DUNG CHÍNH (Đã loại bỏ đăng nhập) ---
+
 st.title("💸 Ứng dụng Quản Lý Chi Tiêu Cá Nhân")
 
 # Navigation Tabs
@@ -112,7 +113,7 @@ with tab1:
                 st.cache_data.clear() 
                 st.success("🎉 Dữ liệu đã được ghi thành công! Vui lòng kiểm tra Dashboard.")
 
-# --- TAB 2: DASHBOARD (Nâng cấp) ---
+# --- TAB 2: DASHBOARD (Sắp xếp lại theo yêu cầu) ---
 with tab2:
     st.header("Bảng Điều Khiển Chi Tiêu")
     df = load_data()
@@ -120,22 +121,7 @@ with tab2:
     if df.empty:
         st.warning("Chưa có dữ liệu hoặc lỗi tải dữ liệu.")
     else:
-        # 1. Bộ lọc Thời gian (Nâng cấp theo yêu cầu)
-        frequency_map = {
-            "Ngày": "D",
-            "Tuần": "W",
-            "Tháng": "M",
-            "Quý": "Q",
-            "Năm": "Y"
-        }
-        
-        time_period = st.selectbox(
-            "🔎 **Xem dữ liệu theo chu kỳ:**",
-            options=list(frequency_map.keys()),
-            index=2 # Mặc định là Tháng
-        )
-        
-        # 2. Các chỉ số KPI chính
+        # 1. Các chỉ số KPI chính
         st.subheader("Tổng Quan Chi Tiêu")
         col1, col2 = st.columns(2)
         total_expense = df['Số Tiền'].sum()
@@ -149,30 +135,22 @@ with tab2:
         
         st.markdown("---")
         
-        # 3. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart)
-        st.subheader(f"Cơ Cấu Chi Tiêu Theo {time_period}")
-        
-        # Nhóm dữ liệu theo chu kỳ đã chọn
-        df['Chu Kỳ'] = df['Ngày'].dt.to_period(frequency_map[time_period]).astype(str)
-        
-        time_series_summary = df.groupby(['Chu Kỳ', 'Danh Mục'])['Số Tiền'].sum().reset_index()
+        # 2. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí MỚI: 1)
+        st.subheader("1. Phân Bổ Tổng Chi Tiêu")
+        category_summary = df.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
 
-        fig_stack = px.bar(
-            time_series_summary, 
-            x='Chu Kỳ', 
-            y='Số Tiền', 
-            color='Danh Mục', 
-            title='Tổng Chi Tiêu Của Các Danh Mục Theo Thời Gian',
-            labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
-            height=450
-        )
-        fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)")
-        st.plotly_chart(fig_stack, use_container_width=True)
-
+        fig_pie = px.pie(category_summary, 
+                         values='Số Tiền', 
+                         names='Danh Mục', 
+                         title='Tỷ Lệ Chi Tiêu theo Danh Mục',
+                         color_discrete_sequence=px.colors.sequential.Agsunset)
+        fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
         st.markdown("---")
-        
-        # 4. Biểu đồ Lũy Kế (Nâng cấp)
-        st.subheader("Xu Hướng Chi Tiêu Lũy Kế")
+            
+        # 3. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí MỚI: 2)
+        st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế")
         df_daily = df.groupby('Ngày')['Số Tiền'].sum().reset_index()
         df_daily['Chi Tiêu Lũy Kế'] = df_daily['Số Tiền'].cumsum()
 
@@ -188,19 +166,40 @@ with tab2:
         st.plotly_chart(fig_cumulative, use_container_width=True)
 
         st.markdown("---")
-
-        # 5. Phân loại Chi Tiêu (Biểu đồ tròn)
-        st.subheader("Phân Bổ Tổng Chi Tiêu")
-        category_summary = df.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
-
-        fig_pie = px.pie(category_summary, 
-                         values='Số Tiền', 
-                         names='Danh Mục', 
-                         title='Tỷ Lệ Chi Tiêu theo Danh Mục',
-                         color_discrete_sequence=px.colors.sequential.Agsunset)
-        fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
-        st.plotly_chart(fig_pie, use_container_width=True)
         
+        # 4. Bộ lọc Thời gian
+        frequency_map = {
+            "Ngày": "D",
+            "Tuần": "W",
+            "Tháng": "M",
+            "Quý": "Q",
+            "Năm": "Y"
+        }
+        
+        time_period = st.selectbox(
+            "🔎 **3. Xem Cơ Cấu Chi Tiêu theo chu kỳ:**",
+            options=list(frequency_map.keys()),
+            index=2 # Mặc định là Tháng
+        )
+        
+        # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí MỚI: 3)
+        
+        df['Chu Kỳ'] = df['Ngày'].dt.to_period(frequency_map[time_period]).astype(str)
+        
+        time_series_summary = df.groupby(['Chu Kỳ', 'Danh Mục'])['Số Tiền'].sum().reset_index()
+
+        fig_stack = px.bar(
+            time_series_summary, 
+            x='Chu Kỳ', 
+            y='Số Tiền', 
+            color='Danh Mục', 
+            title=f'Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
+            labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
+            height=450
+        )
+        fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)")
+        st.plotly_chart(fig_stack, use_container_width=True)
+
         # Hiển thị dữ liệu thô (tùy chọn)
         st.markdown("---")
         st.subheader("Dữ Liệu Thô")
