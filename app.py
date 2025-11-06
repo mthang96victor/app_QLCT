@@ -73,7 +73,7 @@ def load_data():
         return pd.DataFrame()
 
 # --- BẮT ĐẦU GIAO DIỆN STREAMLIT ---
-# ĐÃ SỬA LỖI: CHỈ DÙNG EMOJI LÀM FAVICON ĐỂ TRÁNH LỖI FILE
+# ĐÃ SỬA LỖI: XÓA HOÀN TOÀN THAM SỐ FAVICON ĐỂ KHẮC PHỤC LỖI TYPERROR
 st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered") 
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH (Đã loại bỏ đăng nhập) ---
@@ -122,20 +122,6 @@ with tab2:
     if df.empty:
         st.warning("Chưa có dữ liệu hoặc lỗi tải dữ liệu.")
     else:
-        # 4. Bộ lọc Thời gian
-        frequency_map = {
-            "Ngày": "D",
-            "Tuần": "W",
-            "Tháng": "M",
-            "Quý": "Q",
-            "Năm": "Y"
-        }
-        
-        time_period = st.selectbox(
-            "🔎 **3. Xem Cơ Cấu Chi Tiêu theo chu kỳ:**",
-            options=list(frequency_map.keys()),
-            index=2 # Mặc định là Tháng
-        )
         # 1. Các chỉ số KPI chính
         st.subheader("Tổng Quan Chi Tiêu")
         col1, col2 = st.columns(2)
@@ -150,7 +136,22 @@ with tab2:
         
         st.markdown("---")
         
-        # 2. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí MỚI: 1)
+        # 2. Bộ lọc Thời gian (VỊ TRÍ MỚI: Nằm ngay dưới KPI)
+        frequency_map = {
+            "Ngày": "D",
+            "Tuần": "W",
+            "Tháng": "M",
+            "Quý": "Q",
+            "Năm": "Y"
+        }
+        
+        time_period = st.selectbox(
+            "🔎 **Chọn Chu Kỳ Xem:**",
+            options=list(frequency_map.keys()),
+            index=2 # Mặc định là Tháng
+        )
+        
+        # 3. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí 1)
         st.subheader("1. Phân Bổ Tổng Chi Tiêu")
         category_summary = df.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
 
@@ -164,7 +165,7 @@ with tab2:
         
         st.markdown("---")
             
-        # 3. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí MỚI: 2)
+        # 4. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 2)
         st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế")
         df_daily = df.groupby('Ngày')['Số Tiền'].sum().reset_index()
         df_daily['Chi Tiêu Lũy Kế'] = df_daily['Số Tiền'].cumsum()
@@ -182,9 +183,7 @@ with tab2:
 
         st.markdown("---")
         
-        
-        
-        # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí MỚI: 3)
+        # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí 3)
         
         df['Chu Kỳ'] = df['Ngày'].dt.to_period(frequency_map[time_period]).astype(str)
         
@@ -195,7 +194,7 @@ with tab2:
             x='Chu Kỳ', 
             y='Số Tiền', 
             color='Danh Mục', 
-            title=f'Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
+            title=f'3. Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
             labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
             height=450
         )
@@ -206,7 +205,3 @@ with tab2:
         st.markdown("---")
         st.subheader("Dữ Liệu Thô")
         st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
-
-
-
-
