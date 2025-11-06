@@ -2,9 +2,8 @@ import streamlit as st
 import pandas as pd
 from gspread import service_account_from_dict, authorize
 from io import StringIO
-from datetime import date
+from datetime import date, timedelta
 import plotly.express as px
-# Đã gỡ bỏ: from streamlit_authenticator import Authenticate
 
 # --- THIẾT LẬP KẾT NỐI VỚI GOOGLE SHEETS ---
 # Mã này đọc 11 Secret riêng lẻ mà bạn đã tạo trong Streamlit Cloud
@@ -72,11 +71,39 @@ def load_data():
         st.error(f"Không thể tải dữ liệu. Lỗi có thể do dữ liệu không hợp lệ. Chi tiết: {e}")
         return pd.DataFrame()
 
+# --- HÀM TÍNH TOÁN NGÀY (MỚI) ---
+def get_date_range(period):
+    """Tính toán ngày bắt đầu và ngày kết thúc cho các chu kỳ tương đối."""
+    today = date.today()
+    
+    if period == 'Hôm nay':
+        return today, today
+    elif period == 'Tuần này':
+        start_of_week = today - timedelta(days=today.weekday())
+        return start_of_week, today
+    elif period == 'Tháng này':
+        start_of_month = today.replace(day=1)
+        return start_of_month, today
+    elif period == 'Năm nay':
+        start_of_year = today.replace(month=1, day=1)
+        return start_of_year, today
+    elif period == 'Tuần trước':
+        start_of_last_week = today - timedelta(days=today.weekday() + 7)
+        end_of_last_week = today - timedelta(days=today.weekday() + 1)
+        return start_of_last_week, end_of_last_week
+    elif period == 'Tháng trước':
+        first_day_of_this_month = today.replace(day=1)
+        last_day_of_last_month = first_day_of_this_month - timedelta(days=1)
+        first_day_of_last_month = last_day_of_last_month.replace(day=1)
+        return first_day_of_last_month, last_day_of_last_month
+    
+    return None, None
+
+
 # --- BẮT ĐẦU GIAO DIỆN STREAMLIT ---
-# ĐÃ SỬA LỖI: XÓA HOÀN TOÀN THAM SỐ FAVICON ĐỂ KHẮC PHỤC LỖI TYPERROR
 st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered") 
 
-# --- HIỂN THỊ NỘI DUNG CHÍNH (Đã loại bỏ đăng nhập) ---
+# --- HIỂN THỊ NỘI DUNG CHÍNH ---
 
 st.title("Onion's Chi Tiêu")
 
@@ -96,7 +123,7 @@ with tab1:
         amount_input = st.number_input("💰 **Số Tiền (VND)**", min_value=1000, step=1000, format="%d")
         note_input = st.text_area("🗒️ **Ghi Chú** (tùy chọn)")
 
-        submitted = st.form_submit_button("UPDATE")
+        submitted = st.form_submit_button("✅ UPDATE")
 
         if submitted:
             if amount_input <= 0:
@@ -114,7 +141,7 @@ with tab1:
                 st.cache_data.clear() 
                 st.success("🎉 Dữ liệu đã được ghi thành công! Vui lòng kiểm tra Dashboard.")
 
-# --- TAB 2: DASHBOARD (Sắp xếp lại theo yêu cầu) ---
+# --- TAB 2: DASHBOARD (Nâng cấp Bộ lọc) ---
 with tab2:
     st.header("Bảng Điều Khiển Chi Tiêu")
     df = load_data()
@@ -122,86 +149,130 @@ with tab2:
     if df.empty:
         st.warning("Chưa có dữ liệu hoặc lỗi tải dữ liệu.")
     else:
-        # 1. Các chỉ số KPI chính
-        st.subheader("Tổng Quan Chi Tiêu")
-        col1, col2 = st.columns(2)
-        total_expense = df['Số Tiền'].sum()
-        
-        with col1:
-            st.metric(label="Tổng Chi Tiêu 💰", value=f"{total_expense:,.0f} VND")
-        
-        avg_expense = df['Số Tiền'].mean()
-        with col2:
-            st.metric(label="Trung Bình/Giao Dịch ⚖️", value=f"{avg_expense:,.0f} VND")
-        
-        st.markdown("---")
-        
-        # 2. Bộ lọc Thời gian (VỊ TRÍ MỚI: Nằm ngay dưới KPI)
-        frequency_map = {
-            "Ngày": "D",
-            "Tuần": "W",
-            "Tháng": "M",
-            "Quý": "Q",
-            "Năm": "Y"
-        }
-        
-        time_period = st.selectbox(
-            "🔎 **Chọn Chu Kỳ Xem:**",
-            options=list(frequency_map.keys()),
-            index=2 # Mặc định là Tháng
+        # --- BỘ LỌC PHẠM VI THỜI GIAN MỚI ---
+        st.subheader("Lọc Dữ Liệu")
+        filter_type = st.radio(
+            "Chọn Phạm Vi Thời Gian:",
+            ('Tương đối (Hôm nay/Tuần/Tháng/Năm)', 'Tùy chỉnh (Chọn ngày)'),
+            index=0
         )
         
-        # 3. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí 1)
-        st.subheader("1. Phân Bổ Tổng Chi Tiêu")
-        category_summary = df.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
-
-        fig_pie = px.pie(category_summary, 
-                         values='Số Tiền', 
-                         names='Danh Mục', 
-                         title='Tỷ Lệ Chi Tiêu theo Danh Mục',
-                         color_discrete_sequence=px.colors.sequential.Agsunset)
-        fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
-        st.plotly_chart(fig_pie, use_container_width=True)
+        df_filtered = df.copy()
         
-        st.markdown("---")
+        if filter_type == 'Tương đối (Hôm nay/Tuần/Tháng/Năm)':
+            relative_period = st.selectbox(
+                "Chọn chu kỳ:",
+                ['Hôm nay', 'Tuần này', 'Tháng này', 'Năm nay', 'Tuần trước', 'Tháng trước'],
+                index=2
+            )
+            start_date, end_date = get_date_range(relative_period)
             
-        # 4. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 2)
-        st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế")
-        df_daily = df.groupby('Ngày')['Số Tiền'].sum().reset_index()
-        df_daily['Chi Tiêu Lũy Kế'] = df_daily['Số Tiền'].cumsum()
-
-        fig_cumulative = px.line(
-            df_daily, 
-            x='Ngày', 
-            y='Chi Tiêu Lũy Kế', 
-            title='Chi Tiêu Tích Lũy Theo Thời Gian',
-            labels={'Chi Tiêu Lũy Kế': 'Tổng Chi Tiêu Lũy Kế (VND)', 'Ngày': 'Ngày'},
-            line_shape='spline',
-            height=400
-        )
-        st.plotly_chart(fig_cumulative, use_container_width=True)
-
+            if start_date and end_date:
+                st.info(f"Đang hiển thị dữ liệu từ **{start_date.strftime('%d-%m-%Y')}** đến **{end_date.strftime('%d-%m-%Y')}**")
+                
+                # Áp dụng bộ lọc cho DataFrame
+                df_filtered = df[(df['Ngày'].dt.date >= start_date) & 
+                                 (df['Ngày'].dt.date <= end_date)]
+                
+        else: # Tùy chỉnh (Chọn ngày)
+            col_start, col_end = st.columns(2)
+            with col_start:
+                start_date = st.date_input("Ngày Bắt Đầu", df['Ngày'].min())
+            with col_end:
+                end_date = st.date_input("Ngày Kết Thúc", df['Ngày'].max())
+            
+            if start_date <= end_date:
+                df_filtered = df[(df['Ngày'].dt.date >= start_date) & 
+                                 (df['Ngày'].dt.date <= end_date)]
+            else:
+                st.error("Ngày Bắt Đầu phải nhỏ hơn hoặc bằng Ngày Kết Thúc.")
+                df_filtered = pd.DataFrame()
+        
         st.markdown("---")
         
-        # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí 3)
+        # --- HIỂN THỊ DASHBOARD ---
         
-        df['Chu Kỳ'] = df['Ngày'].dt.to_period(frequency_map[time_period]).astype(str)
-        
-        time_series_summary = df.groupby(['Chu Kỳ', 'Danh Mục'])['Số Tiền'].sum().reset_index()
+        if df_filtered.empty:
+            st.warning("Không tìm thấy chi tiêu nào trong phạm vi thời gian đã chọn.")
+        else:
+            
+            # 1. Các chỉ số KPI chính
+            st.subheader("Tổng Quan Chi Tiêu")
+            col1, col2 = st.columns(2)
+            total_expense = df_filtered['Số Tiền'].sum()
+            
+            with col1:
+                st.metric(label="Tổng Chi Tiêu 💰", value=f"{total_expense:,.0f} VND")
+            
+            avg_expense = df_filtered['Số Tiền'].mean()
+            with col2:
+                st.metric(label="Trung Bình/Giao Dịch ⚖️", value=f"{avg_expense:,.0f} VND")
+            
+            st.markdown("---")
+            
+            # 2. Bộ lọc Chu kỳ (Dùng cho biểu đồ cột chồng)
+            frequency_map = {
+                "Ngày": "D", "Tuần": "W", "Tháng": "M", "Quý": "Q", "Năm": "Y"
+            }
+            
+            time_period = st.selectbox(
+                "🔎 **Chọn Chu Kỳ Nhóm Dữ Liệu (Cho biểu đồ cột):**",
+                options=list(frequency_map.keys()),
+                index=2 # Mặc định là Tháng
+            )
+            st.markdown("---")
 
-        fig_stack = px.bar(
-            time_series_summary, 
-            x='Chu Kỳ', 
-            y='Số Tiền', 
-            color='Danh Mục', 
-            title=f'3. Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
-            labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
-            height=450
-        )
-        fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)")
-        st.plotly_chart(fig_stack, use_container_width=True)
+            # 3. Phân loại Chi Tiêu (Biểu đồ tròn - Vị trí 1)
+            st.subheader("1. Phân Bổ Tổng Chi Tiêu")
+            category_summary = df_filtered.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
 
-        # Hiển thị dữ liệu thô (tùy chọn)
-        st.markdown("---")
-        st.subheader("Dữ Liệu Thô")
-        st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
+            fig_pie = px.pie(category_summary, 
+                             values='Số Tiền', 
+                             names='Danh Mục', 
+                             title='Tỷ Lệ Chi Tiêu theo Danh Mục',
+                             color_discrete_sequence=px.colors.sequential.Agsunset)
+            fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+            st.markdown("---")
+                
+            # 4. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 2)
+            st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế")
+            df_daily = df_filtered.groupby('Ngày')['Số Tiền'].sum().reset_index()
+            df_daily['Chi Tiêu Lũy Kế'] = df_daily['Số Tiền'].cumsum()
+
+            fig_cumulative = px.line(
+                df_daily, 
+                x='Ngày', 
+                y='Chi Tiêu Lũy Kế', 
+                title='Chi Tiêu Tích Lũy Theo Thời Gian',
+                labels={'Chi Tiêu Lũy Kế': 'Tổng Chi Tiêu Lũy Kế (VND)', 'Ngày': 'Ngày'},
+                line_shape='spline',
+                height=400
+            )
+            st.plotly_chart(fig_cumulative, use_container_width=True)
+
+            st.markdown("---")
+            
+            # 5. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart - Vị trí 3)
+            
+            df_filtered['Chu Kỳ'] = df_filtered['Ngày'].dt.to_period(frequency_map[time_period]).astype(str)
+            
+            time_series_summary = df_filtered.groupby(['Chu Kỳ', 'Danh Mục'])['Số Tiền'].sum().reset_index()
+
+            fig_stack = px.bar(
+                time_series_summary, 
+                x='Chu Kỳ', 
+                y='Số Tiền', 
+                color='Danh Mục', 
+                title=f'3. Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
+                labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
+                height=450
+            )
+            fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)")
+            st.plotly_chart(fig_stack, use_container_width=True)
+
+            # Hiển thị dữ liệu thô (tùy chọn)
+            st.markdown("---")
+            st.subheader("Dữ Liệu Thô")
+            st.dataframe(df_filtered.sort_values(by='Ngày', ascending=False), use_container_width=True)
