@@ -19,8 +19,8 @@ def get_gspread_credentials():
     
     # Kiểm tra xem tất cả các key cần thiết có tồn tại không
     if not all(key in creds for key in required_keys):
-        # Đây là lỗi mà bạn đã gặp. Chúng ta báo lỗi này nếu thiếu Secret
-        st.error("Lỗi cấu hình Secret: Vui lòng kiểm tra lại 11 trường trong Secret.")
+        # Báo lỗi cấu hình Secret nếu thiếu trường
+        st.error("Lỗi cấu hình Secret: Vui lòng kiểm tra lại 11 trường Secret (type, project_id, etc.)")
         st.stop()
         return None
 
@@ -32,7 +32,7 @@ try:
     # Khởi tạo client gspread bằng dictionary credentials
     gc = service_account_from_dict(gspread_credentials)
 except Exception as e:
-    st.error(f"Lỗi: Không thể khởi tạo kết nối GSpread. Vui lòng kiểm tra cấu trúc 11 Secret. Chi tiết: {e}")
+    st.error(f"Lỗi: Không thể khởi tạo kết nối GSpread. Chi tiết: Vui lòng kiểm tra lại định dạng 11 Secret. Lỗi: {e}")
     st.stop()
 
 # ĐÃ THAY THẾ BẰNG ID GOOGLE SHEET CỦA BẠN!
@@ -60,7 +60,8 @@ def load_data():
         data = ws.get_all_records()
         df = pd.DataFrame(data)
         
-        if not all(col in df.columns for col in ['Ngày', 'Danh Mục', 'Số Tiền', 'Ghi Chú']): 
+        required_cols = ['Ngày', 'Danh Mục', 'Số Tiền', 'Ghi Chú']
+        if not all(col in df.columns for col in required_cols): 
             st.error("Cấu trúc Sheet không đúng. Cần có các cột: Ngày, Danh Mục, Số Tiền, Ghi Chú.")
             return pd.DataFrame()
             
@@ -109,18 +110,33 @@ with tab1:
                 ws.append_row(data_to_add)
                 
                 st.cache_data.clear() 
-                st.success("🎉 Dữ liệu đã được ghi thành công!")
+                st.success("🎉 Dữ liệu đã được ghi thành công! Vui lòng kiểm tra Dashboard.")
 
-# --- TAB 2: DASHBOARD ---
+# --- TAB 2: DASHBOARD (Nâng cấp) ---
 with tab2:
     st.header("Bảng Điều Khiển Chi Tiêu")
     df = load_data()
 
     if df.empty:
-        st.warning("Chưa có dữ liệu hoặc lỗi tải dữ liệu. Vui lòng kiểm tra kết nối Sheet.")
+        st.warning("Chưa có dữ liệu hoặc lỗi tải dữ liệu.")
     else:
-        # 1. Các chỉ số KPI chính
-        st.subheader("Tổng Quan")
+        # 1. Bộ lọc Thời gian (Nâng cấp theo yêu cầu)
+        frequency_map = {
+            "Ngày": "D",
+            "Tuần": "W",
+            "Tháng": "M",
+            "Quý": "Q",
+            "Năm": "Y"
+        }
+        
+        time_period = st.selectbox(
+            "🔎 **Xem dữ liệu theo chu kỳ:**",
+            options=list(frequency_map.keys()),
+            index=2 # Mặc định là Tháng
+        )
+        
+        # 2. Các chỉ số KPI chính
+        st.subheader("Tổng Quan Chi Tiêu")
         col1, col2 = st.columns(2)
         total_expense = df['Số Tiền'].sum()
         
@@ -133,8 +149,48 @@ with tab2:
         
         st.markdown("---")
         
-        # 2. Phân loại Chi Tiêu (Biểu đồ tròn)
-        st.subheader("Phân Loại Chi Tiêu")
+        # 3. Biểu đồ Cơ cấu Chi tiêu Theo Thời gian (Stacked Bar Chart)
+        st.subheader(f"Cơ Cấu Chi Tiêu Theo {time_period}")
+        
+        # Nhóm dữ liệu theo chu kỳ đã chọn
+        df['Chu Kỳ'] = df['Ngày'].dt.to_period(frequency_map[time_period]).astype(str)
+        
+        time_series_summary = df.groupby(['Chu Kỳ', 'Danh Mục'])['Số Tiền'].sum().reset_index()
+
+        fig_stack = px.bar(
+            time_series_summary, 
+            x='Chu Kỳ', 
+            y='Số Tiền', 
+            color='Danh Mục', 
+            title='Tổng Chi Tiêu Của Các Danh Mục Theo Thời Gian',
+            labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
+            height=450
+        )
+        fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)")
+        st.plotly_chart(fig_stack, use_container_width=True)
+
+        st.markdown("---")
+        
+        # 4. Biểu đồ Lũy Kế (Nâng cấp)
+        st.subheader("Xu Hướng Chi Tiêu Lũy Kế")
+        df_daily = df.groupby('Ngày')['Số Tiền'].sum().reset_index()
+        df_daily['Chi Tiêu Lũy Kế'] = df_daily['Số Tiền'].cumsum()
+
+        fig_cumulative = px.line(
+            df_daily, 
+            x='Ngày', 
+            y='Chi Tiêu Lũy Kế', 
+            title='Chi Tiêu Tích Lũy Theo Thời Gian',
+            labels={'Chi Tiêu Lũy Kế': 'Tổng Chi Tiêu Lũy Kế (VND)', 'Ngày': 'Ngày'},
+            line_shape='spline',
+            height=400
+        )
+        st.plotly_chart(fig_cumulative, use_container_width=True)
+
+        st.markdown("---")
+
+        # 5. Phân loại Chi Tiêu (Biểu đồ tròn)
+        st.subheader("Phân Bổ Tổng Chi Tiêu")
         category_summary = df.groupby('Danh Mục')['Số Tiền'].sum().reset_index()
 
         fig_pie = px.pie(category_summary, 
@@ -144,6 +200,8 @@ with tab2:
                          color_discrete_sequence=px.colors.sequential.Agsunset)
         fig_pie.update_traces(textinfo='percent+label', marker=dict(line=dict(color='#000000', width=1)))
         st.plotly_chart(fig_pie, use_container_width=True)
-
+        
+        # Hiển thị dữ liệu thô (tùy chọn)
         st.markdown("---")
-
+        st.subheader("Dữ Liệu Thô")
+        st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
