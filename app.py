@@ -73,12 +73,12 @@ def load_data():
         return pd.DataFrame()
 
 # --- BẮT ĐẦU GIAO DIỆN STREAMLIT ---
-# DÒNG NÀY ĐÃ ĐƯỢC THAY ĐỔI: THÊM THAM SỐ favicon="logo.png"
-st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered", favicon="logo.png") 
+# DÒNG NÀY ĐÃ ĐƯỢC THAY ĐỔI: THÊM THAM SỐ favicon="4.png"
+st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered", favicon="4.png") 
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH (Đã loại bỏ đăng nhập) ---
 
-st.title("💸 Ứng dụng Quản Lý Chi Tiêu Cá Nhân")
+st.title("Onion chi tiêu")
 
 # Navigation Tabs
 tab1, tab2 = st.tabs(["**NHẬP LIỆU**", "**DASHBOARD**"])
@@ -96,7 +96,7 @@ with tab1:
         amount_input = st.number_input("💰 **Số Tiền (VND)**", min_value=1000, step=1000, format="%d")
         note_input = st.text_area("🗒️ **Ghi Chú** (tùy chọn)")
 
-        submitted = st.form_submit_button("✅ GHI DỮ LIỆU")
+        submitted = st.form_submit_button("UPDATE")
 
         if submitted:
             if amount_input <= 0:
@@ -205,3 +205,4 @@ with tab2:
         st.markdown("---")
         st.subheader("Dữ Liệu Thô")
         st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
+
