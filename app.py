@@ -64,7 +64,7 @@ def load_data():
             return pd.DataFrame()
             
         df['Ngày'] = pd.to_datetime(df['Ngày'], errors='coerce')
-            df['Số Tiền'] = pd.to_numeric(df['Số Tiền'], errors='coerce')
+        df['Số Tiền'] = pd.to_numeric(df['Số Tiền'], errors='coerce')
         df.dropna(subset=['Số Tiền', 'Ngày'], inplace=True)
         
         return df
@@ -205,3 +205,4 @@ with tab2:
         st.markdown("---")
         st.subheader("Dữ Liệu Thô")
         st.dataframe(df.sort_values(by='Ngày', ascending=False), use_container_width=True)
+
