@@ -4,6 +4,7 @@ from gspread import service_account_from_dict, authorize
 from io import StringIO
 from datetime import date, timedelta
 import plotly.express as px
+import numpy as np # Import numpy
 
 # --- THIẾT LẬP KẾT NỐI VỚI GOOGLE SHEETS ---
 # Mã này đọc 11 Secret riêng lẻ mà bạn đã tạo trong Streamlit Cloud
@@ -105,7 +106,7 @@ st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered")
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH ---
 
-st.title("💸 Ứng dụng Quản Lý Chi Tiêu Cá Nhân")
+st.title("Onion's Chi Tiêu")
 
 # Navigation Tabs
 tab1, tab2 = st.tabs(["**NHẬP LIỆU**", "**DASHBOARD**"])
@@ -122,7 +123,7 @@ with tab1:
         
         date_input = st.date_input("🗓️ **Ngày**", pd.to_datetime('today'))
         category_input = st.selectbox("📝 **Danh Mục**", options=CATEGORIES)
-        amount_input = st.number_input("💰 **Số Tiền (VND)**", min_value=1000, step=1000, format="%d")
+        amount_input = st.number_input("💰 **Số Tiền (VND)**", min_value=10000, step=5000, format="%d")
         note_input = st.text_area("🗒️ **Ghi Chú** (tùy chọn)")
 
         submitted = st.form_submit_button("✅ UPDATE")
@@ -181,9 +182,9 @@ with tab2:
         else: # Tùy chỉnh (Chọn ngày)
             col_start, col_end = st.columns(2)
             with col_start:
-                start_date = st.date_input("Ngày Bắt Đầu", df['Ngày'].min())
+                start_date = st.date_input("Ngày Bắt Đầu", df['Ngày'].min().date()) # Chuyển về date object
             with col_end:
-                end_date = st.date_input("Ngày Kết Thúc", df['Ngày'].max())
+                end_date = st.date_input("Ngày Kết Thúc", df['Ngày'].max().date()) # Chuyển về date object
             
             if start_date <= end_date:
                 df_filtered = df[(df['Ngày'].dt.date >= start_date) & 
@@ -219,9 +220,12 @@ with tab2:
             with col1:
                 st.metric(label="Tổng Chi Tiêu 💰", value=f"{total_expense:,.0f} VND")
             
-            avg_expense = df_filtered['Số Tiền'].mean()
+            # KPI THAY ĐỔI: TÍNH TRUNG BÌNH/NGÀY (YÊU CẦU MỚI)
+            total_days = (df_filtered['Ngày'].max() - df_filtered['Ngày'].min()).days + 1
+            avg_expense_daily = total_expense / total_days if total_days > 0 else 0
+            
             with col2:
-                st.metric(label="Trung Bình/Giao Dịch ⚖️", value=f"{avg_expense:,.0f} VND")
+                st.metric(label="Trung Bình/Ngày ⚖️", value=f"{avg_expense_daily:,.0f} VND") # Cập nhật label
             
             st.markdown("---")
             
@@ -240,7 +244,9 @@ with tab2:
             st.markdown("---")
                 
             # 3. Biểu đồ Lũy Kế (Biểu đồ đường - Vị trí 2)
-            st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế")
+            st.subheader("2. Xu Hướng Chi Tiêu Lũy Kế (Theo Ngày)")
+            
+            # Tính toán lũy kế theo ngày (đã là theo ngày)
             df_daily = df_filtered.groupby('Ngày')['Số Tiền'].sum().reset_index()
             df_daily['Chi Tiêu Lũy Kế'] = df_daily['Số Tiền'].cumsum()
 
@@ -252,6 +258,12 @@ with tab2:
                 labels={'Chi Tiêu Lũy Kế': 'Tổng Chi Tiêu Lũy Kế (VND)', 'Ngày': 'Ngày'},
                 line_shape='spline',
                 height=400
+            )
+            # CẬP NHẬT: Định dạng trục X chỉ hiển thị ngày và Thêm lưới dọc
+            fig_cumulative.update_xaxes(
+                tickformat="%d %b",  # Chỉ hiển thị ngày và tháng
+                showgrid=True,       # Thêm lưới dọc
+                gridcolor='#cccccc'  # Màu lưới nhạt
             )
             st.plotly_chart(fig_cumulative, use_container_width=True)
 
@@ -282,9 +294,21 @@ with tab2:
                 color='Danh Mục', 
                 title=f'3. Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
                 labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
-                height=450
+                height=450,
+                text='Số Tiền' # Thêm label text
             )
-            fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)")
+            
+            # THÊM ĐỊNH DẠNG DATA LABEL (k)
+            fig_stack.update_traces(texttemplate='%{text:s}') # Định dạng text
+            fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)", uniformtext_minsize=8, uniformtext_mode='hide')
+
+            # Hàm định dạng tiền tệ đơn giản (k)
+            def format_money_k(value):
+                return f'{value/1000:,.0f}k' if value >= 1000 else f'{value:,.0f}'
+
+            # Áp dụng hàm định dạng cho text
+            fig_stack.update_traces(text=time_series_summary['Số Tiền'].apply(format_money_k))
+            
             st.plotly_chart(fig_stack, use_container_width=True)
 
             # Hiển thị dữ liệu thô (tùy chọn)
