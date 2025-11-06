@@ -37,7 +37,7 @@ except Exception as e:
 
 # ĐÃ THAY THẾ BẰNG ID GOOGLE SHEET CỦA BẠN!
 SHEET_ID = "1EUD9CKeFI1deKTPWFmL-RrIbQXmNMWYmNYgKZ5jC3o4" 
-SHEET_NAME = "Sheet1" 
+SHEET_NAME = "Note chi tiêu" 
 
 @st.cache_resource
 def get_sheet_connection():
@@ -146,3 +146,4 @@ with tab2:
         st.plotly_chart(fig_pie, use_container_width=True)
 
         st.markdown("---")
+
