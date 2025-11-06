@@ -7,7 +7,6 @@ import plotly.express as px
 # Đã gỡ bỏ: from streamlit_authenticator import Authenticate
 
 # --- THIẾT LẬP KẾT NỐI VỚI GOOGLE SHEETS ---
-
 # Mã này đọc 11 Secret riêng lẻ mà bạn đã tạo trong Streamlit Cloud
 def get_gspread_credentials():
     """Tạo đối tượng credentials từ Streamlit Secrets (11 trường riêng lẻ)."""
@@ -24,6 +23,7 @@ def get_gspread_credentials():
         st.stop()
         return None
 
+    # Trả về dictionary credentials
     return {key: creds[key] for key in required_keys}
 
 try:
@@ -35,7 +35,7 @@ except Exception as e:
 
 # ĐÃ THAY THẾ BẰNG ID GOOGLE SHEET CỦA BẠN!
 SHEET_ID = "1EUD9CKeFI1deKTPWFmL-RrIbQXmNMWYmNYgKZ5jC3o4" 
-SHEET_NAME = "Sheet1" 
+SHEET_NAME = "Note chi tiêu" 
 
 @st.cache_resource
 def get_sheet_connection():
@@ -73,7 +73,8 @@ def load_data():
         return pd.DataFrame()
 
 # --- BẮT ĐẦU GIAO DIỆN STREAMLIT ---
-st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered")
+# DÒNG NÀY ĐÃ ĐƯỢC THAY ĐỔI: THÊM THAM SỐ favicon="logo.png"
+st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered", favicon="logo.png") 
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH (Đã loại bỏ đăng nhập) ---
 
