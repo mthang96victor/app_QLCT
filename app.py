@@ -106,7 +106,7 @@ st.set_page_config(page_title="App Quản Lý Chi Tiêu", layout="centered")
 
 # --- HIỂN THỊ NỘI DUNG CHÍNH ---
 
-st.title("Onion's Chi Tiêu")
+st.title("Onion's Chi tiêu")
 
 # Navigation Tabs
 tab1, tab2 = st.tabs(["**NHẬP LIỆU**", "**DASHBOARD**"])
@@ -123,7 +123,7 @@ with tab1:
         
         date_input = st.date_input("🗓️ **Ngày**", pd.to_datetime('today'))
         category_input = st.selectbox("📝 **Danh Mục**", options=CATEGORIES)
-        amount_input = st.number_input("💰 **Số Tiền (VND)**", min_value=10000, step=5000, format="%d")
+        amount_input = st.number_input("💰 **Số Tiền (VND)**", min_value=1000, step=1000, format="%d")
         note_input = st.text_area("🗒️ **Ghi Chú** (tùy chọn)")
 
         submitted = st.form_submit_button("✅ UPDATE")
@@ -295,19 +295,24 @@ with tab2:
                 title=f'3. Cơ Cấu Chi Tiêu Chi Tiết Theo {time_period}',
                 labels={'Số Tiền': 'Số Tiền (VND)', 'Chu Kỳ': time_period},
                 height=450,
-                text='Số Tiền' # Thêm label text
             )
             
-            # THÊM ĐỊNH DẠNG DATA LABEL (k)
-            fig_stack.update_traces(texttemplate='%{text:s}') # Định dạng text
-            fig_stack.update_layout(xaxis_title=time_period, yaxis_title="Số Tiền (VND)", uniformtext_minsize=8, uniformtext_mode='hide')
-
             # Hàm định dạng tiền tệ đơn giản (k)
             def format_money_k(value):
                 return f'{value/1000:,.0f}k' if value >= 1000 else f'{value:,.0f}'
 
-            # Áp dụng hàm định dạng cho text
-            fig_stack.update_traces(text=time_series_summary['Số Tiền'].apply(format_money_k))
+            # Áp dụng hàm định dạng cho text và hiển thị label
+            fig_stack.update_traces(
+                text=time_series_summary['Số Tiền'].apply(format_money_k),
+                textposition='inside' # Đặt label bên trong cột
+            )
+            
+            fig_stack.update_layout(
+                xaxis_title=time_period, 
+                yaxis_title="Số Tiền (VND)", 
+                uniformtext_minsize=8, 
+                uniformtext_mode='hide'
+            )
             
             st.plotly_chart(fig_stack, use_container_width=True)
 
