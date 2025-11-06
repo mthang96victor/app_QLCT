@@ -114,7 +114,7 @@ tab1, tab2 = st.tabs(["**NHẬP LIỆU**", "**DASHBOARD**"])
 with tab1:
     st.header("Thêm Chi Tiêu Mới")
     
-    CATEGORIES = ['Ăn uống', 'Giải trí', 'Tiền nhà', 'Đi lại', 'Mua sắm', 'Du lịch', 'Y tế', 'Phong bì']
+    CATEGORIES = ['Ăn uống', 'Giải trí', 'Tiền nhà', 'Đi lại', 'Mua sắm', 'Du lịch', 'Dịch vụ', 'Y tế', 'Phong bì']
 
     with st.form("Chi_tieu_form", clear_on_submit=True):
         
@@ -276,3 +276,4 @@ with tab2:
             st.markdown("---")
             st.subheader("Dữ Liệu Thô")
             st.dataframe(df_filtered.sort_values(by='Ngày', ascending=False), use_container_width=True)
+
