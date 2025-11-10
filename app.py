@@ -112,7 +112,7 @@ st.title("Onion's Chi tiêu")
 tab1, tab2 = st.tabs(["**NHẬP LIỆU**", "**DASHBOARD**"])
 
 # Danh mục cố định (Dùng cho cả nhập liệu và lọc)
-CATEGORIES = ['Ăn uống', 'Giải trí', 'Tiền nhà', 'Đi lại', 'Mua sắm', 'Dịch vụ', 'Du lịch', 'Y tế', 'Quà tặng']
+CATEGORIES = ['Ăn uống', 'Ăn chơi', 'Tiền nhà', 'Đi lại', 'Mua sắm', 'Dịch vụ', 'Du lịch', 'Y tế', 'Quà tặng']
 
 
 # --- TAB 1: NHẬP LIỆU ---
@@ -323,4 +323,5 @@ with tab2:
             st.markdown("---")
             st.subheader("Dữ Liệu Thô")
             st.dataframe(df_filtered.sort_values(by='Ngày', ascending=False), use_container_width=True)
+
 
